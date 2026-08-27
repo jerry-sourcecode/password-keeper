@@ -1,42 +1,11 @@
-# password-keeper
+# Password Keeper
 
-This template should help get you started developing with Vue 3 in Vite.
+一个基于 **Vue 3** 的在线密码保险库。以文件管理器的形式管理信息，数据经 **AES 加密 + gzip 压缩** 后同步到远端，所有内容仅在本地加密，保障隐私安全。
 
-## Recommended IDE Setup
-
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
-
-## Recommended Browser Setup
-
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
-
-## Type Support for `.vue` Imports in TS
-
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
-
-## Customize configuration
-
-See [Vite Configuration Reference](https://vite.dev/config/).
-
-## Project Setup
-
-```sh
-npm install
-```
-
-### Compile and Hot-Reload for Development
-
-```sh
-npm run dev
-```
-
-### Type-Check, Compile and Minify for Production
-
-```sh
-npm run build
-```
+支持：
+- 储存密码和文本笔记，对应后缀分别为 `.pwd` 和 `.md`。
+- 可以使用文件夹来组织这些文件。
+- 支持文件的增加、删除、修改、移动。
+- 允许在线修改 `.pwd` 和 `.md` 文件。
+- 远端保存，多处同步。
+- 使用 SHA-512 进行端到端加密，保证您的隐私。
