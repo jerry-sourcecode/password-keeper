@@ -96,6 +96,36 @@
 							:autosize="{ minRows: 3, maxRows: 8 }"
 							placeholder="请输入备注" />
 					</n-form-item>
+					<n-form-item label="第三方登录">
+						<div class="tp-list">
+							<div
+								v-for="(item, idx) in form.thirdPartyLogins"
+								:key="idx"
+								class="tp-row">
+								<n-auto-complete
+									v-model:value="item.provider"
+									:options="
+										filteredProviderOptions(item.provider)
+									"
+									placeholder="登录方式"
+									style="width: 160px"
+									clearable />
+								<n-input
+									v-model:value="item.account"
+									placeholder="说明" />
+								<n-button
+									quaternary
+									circle
+									type="error"
+									@click="removeTp(idx)"
+									>✕</n-button
+								>
+							</div>
+							<n-button dashed block @click="addTp"
+								>+ 添加关联账号</n-button
+							>
+						</div>
+					</n-form-item>
 				</n-form>
 			</div>
 		</div>
@@ -115,9 +145,11 @@ import {
 	NInputGroup,
 	NInputNumber,
 	NCheckbox,
+	NAutoComplete,
 } from "naive-ui";
 import { getParentPath } from "@/utils/path";
 import { getTxtFileSize } from "@/utils/utils";
+import type { ThirdPartyLogin } from "@/models/PasswordEntry";
 import EditHeader from "./EditHeader.vue";
 
 const route = useRoute();
@@ -134,6 +166,7 @@ const form = reactive({
 	phone: "",
 	email: "",
 	url: "",
+	thirdPartyLogins: [] as { provider: string; account: string }[],
 });
 
 onMounted(() => {
@@ -145,6 +178,12 @@ onMounted(() => {
 		form.phone = d.phone || "";
 		form.email = d.email || "";
 		form.url = d.url || "";
+		form.thirdPartyLogins = (
+			(d.thirdPartyLogins as ThirdPartyLogin[]) || []
+		).map((l: ThirdPartyLogin) => ({
+			provider: l.provider || "",
+			account: l.account || "",
+		}));
 	} else {
 		message.error("条目不存在");
 		router.push("/file/");
@@ -202,6 +241,35 @@ function openUrl() {
 	window.open(url, "_blank", "noopener,noreferrer");
 }
 
+// ---------- 第三方登录关联 ----------
+// 常用第三方登录方式（可自由输入其他）
+const providerOptions = [
+	"GitHub",
+	"Google",
+	"微信",
+	"QQ",
+	"微博",
+	"Microsoft",
+	"Apple",
+	"Twitter",
+].map((v) => ({ label: v, value: v }));
+
+// 按当前输入前缀过滤选项，且越短越靠前（无输入时显示全部并按长度升序）
+function filteredProviderOptions(value: string) {
+	const prefix = (value || "").trim().toLowerCase();
+	return providerOptions
+		.filter((o) => o.value.toLowerCase().startsWith(prefix))
+		.sort((a, b) => a.value.length - b.value.length);
+}
+
+function addTp() {
+	form.thirdPartyLogins.push({ provider: "", account: "" });
+}
+
+function removeTp(idx: number) {
+	form.thirdPartyLogins.splice(idx, 1);
+}
+
 function save() {
 	if (!entry.value) return;
 	const newData = {
@@ -211,6 +279,10 @@ function save() {
 		phone: form.phone,
 		email: form.email,
 		url: form.url,
+		// 只保留至少填写了登录方式或账号的关联项
+		thirdPartyLogins: form.thirdPartyLogins.filter(
+			(l) => l.provider.trim() || l.account.trim(),
+		),
 	};
 	// 容量检查：保存后若超出存储上限则阻止
 	const newSize = getTxtFileSize(
@@ -219,7 +291,10 @@ function save() {
 			newData.remark +
 			newData.email +
 			newData.phone +
-			newData.url,
+			newData.url +
+			newData.thirdPartyLogins
+				.map((l) => l.provider + l.account)
+				.join(""),
 	);
 	if (store.wouldExceedLimit(id, newSize)) {
 		message.error("存储空间不足，保存失败");
@@ -280,5 +355,16 @@ function cancel() {
 	align-items: center;
 	gap: 16px;
 	flex-wrap: wrap;
+}
+.tp-list {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	width: 100%;
+}
+.tp-row {
+	display: flex;
+	gap: 8px;
+	align-items: center;
 }
 </style>

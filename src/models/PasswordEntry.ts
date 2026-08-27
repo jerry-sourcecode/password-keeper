@@ -3,6 +3,11 @@ import { Entry } from './Entry'
 
 export const TYPE_PASSWORD = 'password'
 
+export interface ThirdPartyLogin {
+    provider: string // 登录方式，如 GitHub / Google / 微信
+    account: string  // 对应的第三方账号或说明
+}
+
 export interface PasswordData {
     username: string
     password: string
@@ -10,6 +15,7 @@ export interface PasswordData {
     phone: string
     email: string
     url: string
+    thirdPartyLogins: ThirdPartyLogin[]
 }
 
 export class PasswordEntry extends Entry {
@@ -25,6 +31,7 @@ export class PasswordEntry extends Entry {
         phone = '',
         email = '',
         url = '',
+        thirdPartyLogins = [],
         createdAt,
         updatedAt,
     }: Partial<Omit<Entry, 'data' | 'type'>> & { path: string; title: string } & Partial<PasswordData>) {
@@ -33,14 +40,17 @@ export class PasswordEntry extends Entry {
             path,
             title,
             type: TYPE_PASSWORD,
-            data: { username, password, remark, phone, email, url },
+            data: { username, password, remark, phone, email, url, thirdPartyLogins },
             createdAt,
             updatedAt,
         })
     }
 
     getSize(): number {
-        return getTxtFileSize(this.data.username + this.data.password + this.data.remark + this.data.email + this.data.phone + this.data.url);
+        const thirdParty = (this.data.thirdPartyLogins || [])
+            .map(l => (l.provider || '') + (l.account || ''))
+            .join('');
+        return getTxtFileSize(this.data.username + this.data.password + this.data.remark + this.data.email + this.data.phone + this.data.url + thirdParty);
     }
 
     getDisplayData(): PasswordData {
@@ -58,5 +68,3 @@ export class PasswordEntry extends Entry {
         return this
     }
 }
-
-export interface PasswordData { username: string; password: string; remark: string; phone: string; email: string; url: string }

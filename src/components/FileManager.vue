@@ -97,6 +97,7 @@ function init(api: IApi) {
 					phone: "",
 					email: "",
 					url: "",
+					thirdPartyLogins: [],
 				};
 				break;
 			case "md":
@@ -230,6 +231,7 @@ function init(api: IApi) {
 					phone: entry.data.phone || "",
 					email: entry.data.email || "",
 					url: entry.data.url || "",
+					thirdPartyLogins: entry.data.thirdPartyLogins || [],
 				},
 				null,
 				2,
@@ -299,6 +301,9 @@ async function handleUpload(file: any, parent: string) {
 					remark: parsed.remark || "",
 					phone: parsed.phone || "",
 					email: parsed.email || "",
+					thirdPartyLogins: Array.isArray(parsed.thirdPartyLogins)
+						? parsed.thirdPartyLogins
+						: [],
 					url: parsed.url || "",
 				};
 			} catch {
