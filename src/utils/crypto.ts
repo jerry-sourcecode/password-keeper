@@ -46,6 +46,7 @@ export namespace Crypto {
 
     export function parse(encrypted: string, key: string): boolean {
         const fs = useFileStore();
+        const setting = useSettingsStore();
         try {
             const decrypted = Crypto.decrypt(encrypted, Crypto.hash(key));
             // 兼容：旧数据无 "gz:" 前缀，直接解析；新数据先解压
@@ -57,8 +58,28 @@ export namespace Crypto {
             }
             const parsed_data = JSON.parse(plain).data;
             if (parsed_data.items && parsed_data.folders) {
-                fs.items = parsed_data.items;
-                fs.folders = parsed_data.folders;
+                const remoteMax = Math.max(
+                    0,
+                    ...parsed_data.items.map((i: any) => i.updatedAt || 0),
+                    ...parsed_data.folders.map((f: any) => f.updatedAt || 0),
+                );
+                const localMax = Math.max(
+                    0,
+                    ...fs.items.map(i => i.updatedAt || 0),
+                    ...fs.folders.map(f => f.updatedAt || 0),
+                );
+                // 账号隔离：若本地缓存属于其他账号，直接用远端并更新归属
+                if (fs.owner !== setting.username) {
+                    fs.items = parsed_data.items;
+                    fs.folders = parsed_data.folders;
+                    fs.owner = setting.username;
+                }
+                // 时间戳合并：仅当远端比本地新时才覆盖，
+                // 避免本地尚未成功同步到远端的修改被刷新/拉取覆盖而丢失
+                else if (remoteMax > localMax) {
+                    fs.items = parsed_data.items;
+                    fs.folders = parsed_data.folders;
+                }
                 return true;
             }
         } catch (e) {
@@ -76,7 +97,10 @@ export namespace Crypto {
             setting.masterPassword,
             Crypto.stringify(setting.masterPassword),
             setting.hint,
-        )
+        ).catch((e) => {
+            // 同步失败不致命：本地已有持久化兜底，下次刷新仍可恢复
+            console.error('同步到后端失败（本地数据已保留）:', e);
+        })
     }
 
     /** 从远端拉取并解析用户数据到 store；成功返回查询结果（含 uid），未登录返回 null，出错时抛出 */

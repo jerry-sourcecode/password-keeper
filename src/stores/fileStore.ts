@@ -22,6 +22,8 @@ export const useFileStore = defineStore('file', () => {
     // ---------- 状态 ----------
     const folders = ref<IFolder[]>([])
     const items = ref<IEntry[]>([])
+    // 当前数据归属的账号（用于多账号隔离，避免 pull 串数据）
+    const owner = ref('')
 
     watch(folders, () => {
         Crypto.load();
@@ -387,5 +389,9 @@ export const useFileStore = defineStore('file', () => {
         fileManagerData,
         totalSize,
         wouldExceedLimit,
+        owner,
     }
+}, {
+    // 本地持久化兜底：即使后端同步失败，刷新后也能从 localStorage 恢复
+    persist: true,
 })
