@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import "@svar-ui/vue-filemanager/all.css"; //import css file from the package
-import { NMessageProvider, NPageHeader, NButton } from "naive-ui";
+import {
+	NMessageProvider,
+	NPageHeader,
+	NButton,
+	NDialogProvider,
+} from "naive-ui";
 import { useRouter } from "vue-router";
 import { onMounted } from "vue";
 import { useSettingsStore } from "@/stores/settingsStore";
@@ -21,25 +26,29 @@ function logout() {
 </script>
 
 <template>
-	<n-message-provider>
-		<n-page-header class="header">
-			<template #title>
-				欢迎您，{{ settings.isLogin() ? settings.username : "访客" }}
-			</template>
-			<template #extra>
-				<span>
-					<n-button class="btn" @click="router.push('/settings')"
-						>设置</n-button
-					>
-					<n-button @click="router.push('/')" class="btn"
-						>文件</n-button
-					>
-					<n-button class="btn" @click="logout">注销</n-button>
-				</span>
-			</template>
-		</n-page-header>
-		<router-view />
-	</n-message-provider>
+	<n-dialog-provider>
+		<n-message-provider>
+			<n-page-header class="header">
+				<template #title>
+					欢迎您，{{
+						settings.isLogin() ? settings.username : "访客"
+					}}
+				</template>
+				<template #extra>
+					<span>
+						<n-button class="btn" @click="router.push('/settings')"
+							>设置</n-button
+						>
+						<n-button @click="router.push('/')" class="btn"
+							>文件</n-button
+						>
+						<n-button class="btn" @click="logout">注销</n-button>
+					</span>
+				</template>
+			</n-page-header>
+			<router-view />
+		</n-message-provider>
+	</n-dialog-provider>
 </template>
 
 <style lang="css" scoped>

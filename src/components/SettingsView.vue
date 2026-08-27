@@ -23,8 +23,13 @@
 						placeholder="请输入密码提示（可选）" />
 				</n-form-item>
 				<div class="actions">
-					<n-button type="primary" @click="save">保存</n-button>
-					<n-button @click="cancel">取消</n-button>
+					<n-button type="error" @click="deleteAccount"
+						>删除账号</n-button
+					>
+					<div class="actions-right">
+						<n-button type="primary" @click="save">保存</n-button>
+						<n-button @click="cancel">取消</n-button>
+					</div>
 				</div>
 			</n-form>
 		</div>
@@ -36,11 +41,20 @@ import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { Crypto } from "@/utils/crypto";
-import { useMessage, NForm, NFormItem, NInput, NButton } from "naive-ui";
+import { API } from "@/utils/api";
+import {
+	useMessage,
+	useDialog,
+	NForm,
+	NFormItem,
+	NInput,
+	NButton,
+} from "naive-ui";
 
 const router = useRouter();
 const settings = useSettingsStore();
 const message = useMessage();
+const dialog = useDialog();
 
 const password = ref("");
 const confirmPassword = ref("");
@@ -75,6 +89,31 @@ function save() {
 function cancel() {
 	router.push("/file/");
 }
+
+// 删除账号（危险操作，需二次确认）
+function deleteAccount() {
+	dialog.warning({
+		title: "删除账号",
+		content:
+			"此操作将永久删除你的账号及所有加密数据，且无法恢复。确定继续吗？",
+		positiveText: "删除",
+		negativeText: "取消",
+		async onPositiveClick() {
+			try {
+				await API.deleteUser(
+					settings.username,
+					settings.masterPassword,
+				);
+				message.success("账号已删除");
+				settings.logout();
+				(settings as any).$persist?.();
+				router.push("/login");
+			} catch (e: any) {
+				message.error(e?.message || "删除失败");
+			}
+		},
+	});
+}
 </script>
 
 <style scoped>
@@ -100,8 +139,12 @@ function cancel() {
 }
 .actions {
 	display: flex;
-	gap: 12px;
-	justify-content: flex-end;
+	justify-content: space-between;
+	align-items: center;
 	margin-top: 8px;
+}
+.actions-right {
+	display: flex;
+	gap: 12px;
 }
 </style>
