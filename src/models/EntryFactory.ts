@@ -28,6 +28,7 @@ export class EntryFactory {
                     phone: params.data?.phone,
                     email: params.data?.email,
                     url: params.data?.url,
+                    thirdPartyLogins: params.data?.thirdPartyLogins,
                     createdAt: params.createdAt,
                     updatedAt: params.updatedAt,
                 })
