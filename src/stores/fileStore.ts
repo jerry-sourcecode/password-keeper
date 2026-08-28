@@ -26,10 +26,10 @@ export const useFileStore = defineStore('file', () => {
     const owner = ref('')
 
     watch(folders, () => {
-        Crypto.load();
+        Crypto.push();
     }, { deep: true });
     watch(items, () => {
-        Crypto.load();
+        Crypto.push();
     }, { deep: true });
 
     // 初始化根目录

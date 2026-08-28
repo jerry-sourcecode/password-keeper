@@ -34,6 +34,11 @@ export namespace Crypto {
         return crypto.SHA512(text + salt).toString();
     }
 
+    /**
+     * 转化为加密信息
+     * @param key 密钥
+     * @returns 加密信息
+     */
     export function stringify(key: string): string {
         const fs = useFileStore();
         const json = JSON.stringify({ data: { items: fs.items, folders: fs.folders } });
@@ -44,6 +49,12 @@ export namespace Crypto {
         return Crypto.encrypt(payload, Crypto.hash(key));
     }
 
+    /**
+     * 解密数据并应用
+     * @param encrypted 加密后数据
+     * @param key 密钥
+     * @returns 是否成功
+     */
     export function parse(encrypted: string, key: string): boolean {
         const fs = useFileStore();
         const setting = useSettingsStore();
@@ -88,8 +99,39 @@ export namespace Crypto {
         return false;
     }
 
+    /**
+     * 强制恢复：用于从 .umc 备份导入。
+     * 与 parse 不同，restore 无条件用备份数据覆盖当前 store，
+     * 供用户显式导入备份使用。解密失败返回 false（本地数据不受影响）。
+     */
+    export function restore(encrypted: string, key: string): boolean {
+        const fs = useFileStore();
+        try {
+            const decrypted = Crypto.decrypt(encrypted, Crypto.hash(key));
+            let plain = decrypted;
+            if (decrypted.startsWith("gz:")) {
+                const u8 = base64ToUint8(decrypted.slice(3));
+                const decompressed = pako.inflate(u8);
+                plain = new TextDecoder().decode(decompressed);
+            }
+            const parsed_data = JSON.parse(plain).data;
+            if (parsed_data.items && parsed_data.folders) {
+                fs.items = parsed_data.items;
+                fs.folders = parsed_data.folders;
+                fs.owner = useSettingsStore().username;
+                return true;
+            }
+        } catch (e) {
+            console.error('Failed to restore encrypted data:', e);
+        }
+        return false;
+    }
 
-    export function load() {
+
+    /**
+     * 将数据推送到远端
+     */
+    export function push() {
         const setting = useSettingsStore();
         if (!setting.isLogin()) return;
         API.updateUser(

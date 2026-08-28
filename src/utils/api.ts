@@ -103,5 +103,10 @@ export const API = {
     // ---------- 4. 删除用户 ----------
     async deleteUser(username: string, password: string) {
         await request<SuccessResult>("/api/auth/delete", { username, password });
+    },
+
+    async changePassword(username: string, oldPassword: string, newPassword: string, passwordHint?: string) {
+        await request<SuccessResult>("/api/auth/change-password", { username, oldPassword, newPassword, passwordHint });
+        console.log("密码修改成功");
     }
 }

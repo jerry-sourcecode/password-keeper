@@ -23,9 +23,13 @@
 						placeholder="请输入密码提示（可选）" />
 				</n-form-item>
 				<div class="actions">
-					<n-button type="error" @click="deleteAccount"
-						>删除账号</n-button
-					>
+					<div class="actions-left">
+						<n-button @click="downloadBackup">下载备份</n-button>
+						<n-button @click="importBackup">导入备份</n-button>
+						<n-button type="error" @click="deleteAccount"
+							>删除账号</n-button
+						>
+					</div>
 					<div class="actions-right">
 						<n-button type="primary" @click="save">保存</n-button>
 						<n-button @click="cancel">取消</n-button>
@@ -40,6 +44,7 @@
 import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useSettingsStore } from "@/stores/settingsStore";
+import { useFileStore } from "@/stores/fileStore";
 import { Crypto } from "@/utils/crypto";
 import { API } from "@/utils/api";
 import {
@@ -73,12 +78,20 @@ function save() {
 		message.error("两次输入的主密码不一致");
 		return;
 	}
+	const ori = settings.masterPassword;
 	settings.setMasterPassword(password.value);
 	settings.setHint(hint.value);
 	(settings as any).$persist?.();
 	// 同步到后端（用户名、主密码、加密数据、密码提示）
 	try {
-		Crypto.load();
+		API.changePassword(
+			settings.username,
+			ori,
+			settings.masterPassword,
+			settings.hint,
+		).then(() => {
+			Crypto.push();
+		});
 	} catch (e) {
 		console.error("同步到后端失败", e);
 	}
@@ -88,6 +101,80 @@ function save() {
 
 function cancel() {
 	router.push("/file/");
+}
+
+// 下载整个用户数据的备份文件（.umc，内容为加密后的数据）
+function downloadBackup() {
+	try {
+		const encrypted = Crypto.stringify(settings.masterPassword);
+		const payload = JSON.stringify(
+			{
+				app: "password-keeper",
+				version: "2.0",
+				username: settings.username,
+				createdAt: Date.now(),
+				data: encrypted,
+			},
+			null,
+			2,
+		);
+		const blob = new Blob([payload], { type: "application/json" });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement("a");
+		a.href = url;
+		a.download = `password-keeper-${settings.username || "backup"}.umc`;
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+		URL.revokeObjectURL(url);
+		message.success("备份已下载");
+	} catch (e) {
+		console.error("导出失败", e);
+		message.error("导出失败");
+	}
+}
+
+// 导入 .umc 备份，覆盖当前数据
+function importBackup() {
+	if (!settings.masterPassword) {
+		message.warning("未设置主密码，无法导入");
+		return;
+	}
+	const input = document.createElement("input");
+	input.type = "file";
+	input.accept = ".umc";
+	input.onchange = async () => {
+		const file = (input.files || [])[0];
+		if (!file) return;
+		try {
+			const text = await file.text();
+			const parsed = JSON.parse(text);
+			if (parsed.app !== "password-keeper" || !parsed.data) {
+				message.error("无效的 umc 备份文件");
+				return;
+			}
+			// 用户名校验：备份所属账号必须与当前登录账号一致，否则禁止加载
+			if (parsed.username && parsed.username !== settings.username) {
+				message.error(
+					`备份属于账号 "${parsed.username}"，与当前账号 "${settings.username}" 不一致，已禁止加载`,
+				);
+				return;
+			}
+			const ok = Crypto.restore(parsed.data, settings.masterPassword);
+			if (!ok) {
+				message.error("导入失败：主密码不匹配或文件损坏");
+				return;
+			}
+			const fs = useFileStore();
+			(fs as any).$persist?.();
+			Crypto.push();
+			message.success("导入成功");
+		} catch (err) {
+			console.error("导入失败", err);
+			message.error("导入失败：文件格式错误");
+		}
+	};
+	input.click();
 }
 
 // 删除账号（危险操作，需二次确认）
@@ -142,6 +229,10 @@ function deleteAccount() {
 	justify-content: space-between;
 	align-items: center;
 	margin-top: 8px;
+}
+.actions-left {
+	display: flex;
+	gap: 12px;
 }
 .actions-right {
 	display: flex;

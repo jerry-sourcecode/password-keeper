@@ -9,3 +9,6 @@
 - 允许在线修改 `.pwd` 和 `.md` 文件。
 - 远端保存，多处同步。
 - 使用 SHA-512 进行端到端加密，保证您的隐私。
+- 支持导出
+
+若您想要从 [Password Helper](https://github.com/jerry-sourcecode/Password-Helper) 迁移到此项目，可以使用根目录下的 [migrate.py](./migrate.py)，这是一个自带GUI的小程序，可以帮助您进行 umc 文件的升级。
