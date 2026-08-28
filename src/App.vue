@@ -9,6 +9,7 @@ import {
 import { useRouter } from "vue-router";
 import { onMounted } from "vue";
 import { useSettingsStore } from "@/stores/settingsStore";
+import { useFileStore } from "@/stores/fileStore";
 import { Crypto } from "@/utils/crypto";
 
 const router = useRouter();
@@ -21,6 +22,8 @@ onMounted(() => {
 
 function logout() {
 	settings.logout();
+	// 注销时清空本地文件数据，避免切换账号时残留上个账号的信息
+	useFileStore().resetAll();
 	router.push("/login");
 }
 </script>

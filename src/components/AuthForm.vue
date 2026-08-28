@@ -64,6 +64,7 @@ import { useMessage, NForm, NFormItem, NInput, NButton } from "naive-ui";
 import { API, ApiError } from "@/utils/api";
 import { Crypto } from "@/utils/crypto";
 import { useSettingsStore } from "@/stores/settingsStore";
+import { useFileStore } from "@/stores/fileStore";
 const props = defineProps<{ mode: "login" | "register" }>();
 
 const router = useRouter();
@@ -97,6 +98,10 @@ async function validate(
 			);
 			settingStore.uid = res;
 			settingStore.setHint(passwordHint.value);
+			// 新账号从干净状态开始：清空上个账号残留的文件数据
+			const fileStore = useFileStore();
+			fileStore.resetAll();
+			fileStore.owner = username;
 			message.success("注册成功！");
 			router.push("/login");
 			return true;

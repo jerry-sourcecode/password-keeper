@@ -307,6 +307,7 @@ export const useFileStore = defineStore('file', () => {
     function resetAll(): void {
         folders.value = [{ id: 'root', path: '/', name: '/', createdAt: Date.now(), updatedAt: Date.now() }]
         items.value = []
+        owner.value = ''
     }
 
     // 生成 SVAR FileManager 所需的 data 数组
