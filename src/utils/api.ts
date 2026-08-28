@@ -58,6 +58,15 @@ export interface QueryResult {
     uid: string;
     updatedAt: number;
 }
+interface InviteResult {
+    success: boolean;
+    inviteCode: string;
+}
+interface InviteListResult {
+    success: boolean;
+    count: number;
+    invites: string[];
+}
 
 export const API = {
     // ---------- 1. 注册 ----------
@@ -107,6 +116,22 @@ export const API = {
 
     async changePassword(username: string, oldPassword: string, newPassword: string, passwordHint?: string) {
         await request<SuccessResult>("/api/auth/change-password", { username, oldPassword, newPassword, passwordHint });
-        console.log("密码修改成功");
+    },
+
+    // ---------- 6. 生成邀请码（管理员） ----------
+    async generateInvite(adminPassword: string) {
+        const result = await request<InviteResult>("/api/auth/invite", { adminPassword });
+        return result.inviteCode;
+    },
+
+    // ---------- 7. 查询全部有效邀请码（管理员） ----------
+    async listInvites(adminPassword: string) {
+        const result = await request<InviteListResult>("/api/auth/invite/list", { adminPassword });
+        return result.invites;
+    },
+
+    // ---------- 8. 删除有效邀请码（管理员） ----------
+    async deleteInvite(adminPassword: string, inviteCode: string) {
+        await request<SuccessResult>("/api/auth/invite/delete", { adminPassword, inviteCode });
     }
 }

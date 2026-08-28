@@ -332,7 +332,7 @@ class UMCMigrator:
             password_data = {
                 "username": uname,
                 "password": password_val,
-                "remark": "",
+                "remark": dec(pwd.get("note")) or "",
                 "phone": phone,
                 "email": email,
                 "url": from_val,

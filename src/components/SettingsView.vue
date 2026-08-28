@@ -2,46 +2,106 @@
 	<div class="settings-page">
 		<div class="settings-card">
 			<h2 class="settings-title">设置</h2>
-			<n-form label-placement="top" class="settings-form">
-				<n-form-item label="主密码">
-					<n-input
-						v-model:value="password"
-						type="password"
-						show-password-on="click"
-						placeholder="请输入主密码" />
-				</n-form-item>
-				<n-form-item label="确认主密码">
-					<n-input
-						v-model:value="confirmPassword"
-						type="password"
-						show-password-on="click"
-						placeholder="请再次输入主密码" />
-				</n-form-item>
-				<n-form-item label="密码提示">
-					<n-input
-						v-model:value="hint"
-						placeholder="请输入密码提示（可选）" />
-				</n-form-item>
-				<div class="actions">
-					<div class="actions-left">
-						<n-button @click="downloadBackup">下载备份</n-button>
-						<n-button @click="importBackup">导入备份</n-button>
-						<n-button type="error" @click="deleteAccount"
-							>删除账号</n-button
-						>
-					</div>
-					<div class="actions-right">
-						<n-button type="primary" @click="save">保存</n-button>
-						<n-button @click="cancel">取消</n-button>
-					</div>
-				</div>
-			</n-form>
+			<n-tabs type="line" animated>
+				<n-tab-pane name="general" tab="通用设置">
+					<n-form label-placement="top" class="settings-form">
+						<n-form-item label="主密码">
+							<n-input
+								v-model:value="password"
+								type="password"
+								show-password-on="click"
+								placeholder="请输入主密码" />
+						</n-form-item>
+						<n-form-item label="确认主密码">
+							<n-input
+								v-model:value="confirmPassword"
+								type="password"
+								show-password-on="click"
+								placeholder="请再次输入主密码" />
+						</n-form-item>
+						<n-form-item label="密码提示">
+							<n-input
+								v-model:value="hint"
+								placeholder="请输入密码提示（可选）" />
+						</n-form-item>
+						<div class="actions">
+							<div class="actions-left">
+								<n-button @click="downloadBackup"
+									>下载备份</n-button
+								>
+								<n-button @click="importBackup"
+									>导入备份</n-button
+								>
+								<n-button type="error" @click="deleteAccount"
+									>删除账号</n-button
+								>
+							</div>
+							<div class="actions-right">
+								<n-button type="primary" @click="save"
+									>保存</n-button
+								>
+								<n-button @click="cancel">取消</n-button>
+							</div>
+						</div>
+					</n-form>
+				</n-tab-pane>
+				<n-tab-pane v-if="isAdmin" name="invite" tab="邀请码管理">
+					<n-form label-placement="top" class="settings-form">
+						<n-form-item label="管理员密钥">
+							<n-input
+								v-model:value="adminKey"
+								type="password"
+								show-password-on="click"
+								placeholder="请输入管理员密钥" />
+						</n-form-item>
+						<div class="invite-actions">
+							<n-button
+								:loading="inviteLoading"
+								@click="queryInvites"
+								>查询邀请码</n-button
+							>
+							<n-button
+								type="primary"
+								:loading="inviteLoading"
+								@click="generateInvite">
+								生成邀请码
+							</n-button>
+						</div>
+						<div v-if="invites.length" class="invite-list">
+							<n-list bordered>
+								<n-list-item
+									v-for="code in invites"
+									:key="code">
+									<n-text code>{{ code }}</n-text>
+									<template #suffix>
+										<n-button
+											size="small"
+											quaternary
+											@click="copyInvite(code)"
+											>复制</n-button
+										>
+										<n-button
+											size="small"
+											type="error"
+											@click="removeInvite(code)"
+											>删除</n-button
+										>
+									</template>
+								</n-list-item>
+							</n-list>
+						</div>
+						<p v-else class="invite-empty">
+							暂无邀请码，点击“查询邀请码”加载列表
+						</p>
+					</n-form>
+				</n-tab-pane>
+			</n-tabs>
 		</div>
 	</div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useFileStore } from "@/stores/fileStore";
@@ -54,6 +114,11 @@ import {
 	NFormItem,
 	NInput,
 	NButton,
+	NTabs,
+	NTabPane,
+	NList,
+	NListItem,
+	NText,
 } from "naive-ui";
 
 const router = useRouter();
@@ -64,6 +129,10 @@ const dialog = useDialog();
 const password = ref("");
 const confirmPassword = ref("");
 const hint = ref("");
+const adminKey = ref("");
+const invites = ref<string[]>([]);
+const inviteLoading = ref(false);
+const isAdmin = computed(() => settings.username === "admin");
 
 onMounted(() => {
 	hint.value = settings.hint || "";
@@ -201,6 +270,66 @@ function deleteAccount() {
 		},
 	});
 }
+
+// ---------- 邀请码管理（仅 admin 账号可见） ----------
+async function requireAdminKey(): Promise<boolean> {
+	if (!adminKey.value) {
+		message.warning("请输入管理员密钥");
+		return false;
+	}
+	return true;
+}
+
+async function queryInvites() {
+	if (!(await requireAdminKey())) return;
+	inviteLoading.value = true;
+	try {
+		invites.value = await API.listInvites(adminKey.value);
+		message.success(`查询成功，当前共有 ${invites.value.length} 个邀请码`);
+	} catch (e: any) {
+		message.error(e?.message || "查询邀请码失败");
+	} finally {
+		inviteLoading.value = false;
+	}
+}
+
+async function generateInvite() {
+	if (!(await requireAdminKey())) return;
+	inviteLoading.value = true;
+	try {
+		const code = await API.generateInvite(adminKey.value);
+		message.success(`邀请码已生成：${code}`);
+		// 生成后刷新列表
+		invites.value = await API.listInvites(adminKey.value);
+	} catch (e: any) {
+		message.error(e?.message || "生成邀请码失败");
+	} finally {
+		inviteLoading.value = false;
+	}
+}
+
+function removeInvite(code: string) {
+	dialog.warning({
+		title: "删除邀请码",
+		content: `确定删除邀请码 ${code} 吗？删除后该邀请码将无法用于注册。生效可能需要 1 分钟。`,
+		positiveText: "删除",
+		negativeText: "取消",
+		async onPositiveClick() {
+			try {
+				await API.deleteInvite(adminKey.value, code);
+				message.success("邀请码已删除");
+				invites.value = invites.value.filter((c) => c !== code);
+			} catch (e: any) {
+				message.error(e?.message || "删除邀请码失败");
+			}
+		},
+	});
+}
+
+async function copyInvite(code: string) {
+	await navigator.clipboard.writeText(code);
+	message.success("邀请码已复制");
+}
 </script>
 
 <style scoped>
@@ -237,5 +366,18 @@ function deleteAccount() {
 .actions-right {
 	display: flex;
 	gap: 12px;
+}
+.invite-actions {
+	display: flex;
+	gap: 12px;
+	margin-top: 8px;
+}
+.invite-list {
+	margin-top: 16px;
+}
+.invite-empty {
+	margin: 16px 0 0;
+	color: #909399;
+	font-size: 13px;
 }
 </style>
