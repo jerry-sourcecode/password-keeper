@@ -93,6 +93,19 @@
 						<p v-else class="invite-empty">
 							暂无邀请码，点击“查询邀请码”加载列表
 						</p>
+						<n-divider />
+						<div class="migrate-section">
+							<p class="migrate-tip">
+								把旧版 KV 中的用户、数据与邀请码迁移到新版
+								D1。该操作幂等，不会覆盖已有数据，可安全重复执行。
+							</p>
+							<n-button
+								type="warning"
+								:loading="migrateLoading"
+								@click="migrateLegacy">
+								迁移旧版 KV 数据
+							</n-button>
+						</div>
 					</n-form>
 				</n-tab-pane>
 			</n-tabs>
@@ -119,6 +132,7 @@ import {
 	NList,
 	NListItem,
 	NText,
+	NDivider,
 } from "naive-ui";
 
 const router = useRouter();
@@ -133,6 +147,7 @@ const adminKey = ref("");
 const invites = ref<string[]>([]);
 const inviteLoading = ref(false);
 const isAdmin = computed(() => settings.username === "admin");
+const migrateLoading = ref(false);
 
 onMounted(() => {
 	hint.value = settings.hint || "";
@@ -330,6 +345,36 @@ async function copyInvite(code: string) {
 	await navigator.clipboard.writeText(code);
 	message.success("邀请码已复制");
 }
+
+// 把旧版 KV 数据迁移到新版 D1（幂等，不覆盖已有数据）
+function migrateLegacy() {
+	if (!adminKey.value) {
+		message.warning("请输入管理员密钥");
+		return;
+	}
+	dialog.warning({
+		title: "迁移旧版 KV 数据",
+		content:
+			"将把旧版 KV 中的用户、数据与邀请码迁移到新版 D1。该操作幂等，不会覆盖已有数据，可安全重复执行。确定继续吗？",
+		positiveText: "开始迁移",
+		negativeText: "取消",
+		async onPositiveClick() {
+			migrateLoading.value = true;
+			try {
+				const r = await API.migrateLegacyData(adminKey.value);
+				message.success(
+					`迁移完成：新增用户 ${r.users} 个、数据 ${r.userData} 份、邀请码 ${r.invites} 个`,
+				);
+				// 迁移后刷新邀请码列表
+				invites.value = await API.listInvites(adminKey.value);
+			} catch (e: any) {
+				message.error(e?.message || "迁移失败");
+			} finally {
+				migrateLoading.value = false;
+			}
+		},
+	});
+}
 </script>
 
 <style scoped>
@@ -379,5 +424,14 @@ async function copyInvite(code: string) {
 	margin: 16px 0 0;
 	color: #909399;
 	font-size: 13px;
+}
+.migrate-section {
+	margin-top: 4px;
+}
+.migrate-tip {
+	margin: 0 0 12px;
+	color: #909399;
+	font-size: 13px;
+	line-height: 1.6;
 }
 </style>

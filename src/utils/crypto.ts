@@ -1,7 +1,7 @@
 import { useFileStore } from "@/stores/fileStore";
 import crypto from "crypto-js";
 import * as pako from "pako";
-import { API, type QueryResult } from "@/utils/api";
+import { API, SOURCE, LEGACY_SOURCE, type QueryResult } from "@/utils/api";
 import { useSettingsStore } from "@/stores/settingsStore";
 
 /** Uint8Array → base64（分块避免栈溢出） */
@@ -134,23 +134,53 @@ export namespace Crypto {
     export function push() {
         const setting = useSettingsStore();
         if (!setting.isLogin()) return;
-        API.updateUser(
+        // 新版后端按 (uid, source) 存储，走专用数据接口写入本程序来源
+        API.saveData(
             setting.username,
             setting.masterPassword,
+            SOURCE,
             Crypto.stringify(setting.masterPassword),
-            setting.hint,
         ).catch((e) => {
             // 同步失败不致命：本地已有持久化兜底，下次刷新仍可恢复
             console.error('同步到后端失败（本地数据已保留）:', e);
         })
     }
 
-    /** 从远端拉取并解析用户数据到 store；成功返回查询结果（含 uid），未登录返回 null，出错时抛出 */
+    /**
+     * 从远端拉取并解析用户数据到 store；成功返回查询结果（含 uid），未登录返回 null，出错时抛出。
+     *
+     * 新版后端按 source 隔离存储，本程序数据位于 SOURCE 下。
+     * 兼容旧数据：若该来源尚无数据（例如旧版 KV 迁移过来的账号），
+     * 自动回退读取 LEGACY_SOURCE，并把旧数据写回 SOURCE，完成平滑升级。
+     */
     export async function pull(): Promise<QueryResult | null> {
         const setting = useSettingsStore();
         if (!setting.username || !setting.masterPassword) return null;
-        const res = await API.queryUser(setting.username, setting.masterPassword);
-        Crypto.parse(res.data, setting.masterPassword);
+        const fs = useFileStore();
+
+        let res = await API.queryUser(setting.username, setting.masterPassword, SOURCE);
+
+        if (!res.data) {
+            const legacy = await API.loadData(
+                setting.username,
+                setting.masterPassword,
+                LEGACY_SOURCE,
+            );
+            if (legacy.data) {
+                res = { ...res, data: legacy.data, dataUpdatedAt: legacy.updatedAt ?? null };
+                // 把旧数据搬到本程序来源，之后直接命中 SOURCE
+                API.saveData(setting.username, setting.masterPassword, SOURCE, legacy.data)
+                    .catch((e) => console.error('旧数据写入新来源失败:', e));
+            }
+        }
+
+        if (res.data) {
+            Crypto.parse(res.data, setting.masterPassword);
+        } else if (fs.owner !== setting.username) {
+            // 远端无数据且本地缓存属于其他账号，清空避免串号
+            fs.resetAll();
+            fs.owner = setting.username;
+        }
         return res;
     }
 }
